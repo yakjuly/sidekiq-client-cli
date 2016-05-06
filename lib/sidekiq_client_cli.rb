@@ -33,11 +33,25 @@ class SidekiqClientCLI
   # Returns false if at least one exception occured.
   def push
     settings.command_args.inject(true) do |success, arg|
-      push_argument arg
+      focus_push_argument arg
     end
   end
 
   private
+  
+  def focus_push_argument(arg)
+    worker = "ScheduledWorker"
+    klass, method_name = arg.split(".")
+    jid = Sidekiq::Client.push({ 'class' => worker,
+                                 'queue' => settings.queue,
+                                 'args'  => [klass, method_name].compact,
+                                 'retry' => false })
+    p "Posted #{arg} to queue '#{settings.queue}', Job ID : #{jid}, Retry : #{settings.retry}"
+    true
+  rescue StandardError => ex
+    p "Failed to push to queue : #{ex.message}"
+    false
+  end
 
   def push_argument(arg)
     jid = Sidekiq::Client.push({ 'class' => arg,
